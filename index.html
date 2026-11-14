@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Le Petit Citoyen — Village 3D</title>
+<meta name="description" content="Une aventure éducative 3D pour les enfants de 5 à 7 ans. Explore le village, aide ses habitants et gagne des étoiles de civisme.">
+<style>
+:root{--ink:#17334a;--cream:#fff8e9;--teal:#1e9b91;--gold:#ffc94a;--pink:#ff8b9b}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:ui-rounded,"Trebuchet MS",system-ui,sans-serif;color:var(--ink);background:#9bd9ed}
+#game{position:fixed;inset:0}canvas{display:block}
+.panel{background:rgba(255,250,239,.94);border:2px solid rgba(255,255,255,.9);border-radius:22px;box-shadow:0 12px 35px #17334a26;backdrop-filter:blur(10px)}
+#topbar{position:fixed;z-index:5;left:14px;right:14px;top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none}
+#brand{padding:10px 16px;font-weight:1000;font-size:clamp(14px,2vw,21px);pointer-events:auto}
+#brand small{display:block;font-size:10px;letter-spacing:2px;color:#54817e}
+#stats{display:flex;gap:8px;pointer-events:auto}
+.stat{padding:10px 13px;font-weight:900;white-space:nowrap}
+#mission{position:fixed;z-index:4;left:16px;top:94px;width:min(260px,43vw);padding:14px}
+#mission h3{margin:0 0 5px;font-size:15px}#mission p{margin:0;font-size:13px;line-height:1.35}
+#controls{position:fixed;z-index:4;bottom:15px;left:50%;transform:translateX(-50%);padding:10px 14px;text-align:center;font-size:12px;font-weight:800;max-width:92vw}
+#interact{position:fixed;z-index:6;bottom:76px;left:50%;transform:translateX(-50%);display:none;border:0;border-radius:999px;padding:14px 24px;background:#ffcf50;color:#503b0a;font-size:16px;font-weight:1000;box-shadow:0 8px 0 #d79e2b;cursor:pointer}
+#interact.show{display:block}
+#dialog{position:fixed;z-index:10;left:50%;bottom:18px;transform:translateX(-50%);width:min(600px,calc(100% - 28px));padding:20px;display:none}
+#dialog.show{display:block}
+#dialog h2{margin:0 0 8px;font-size:21px}#dialog p{font-size:16px;line-height:1.5;margin:0 0 15px}
+.actions{display:flex;gap:9px;flex-wrap:wrap}
+button{font:inherit;border:0;border-radius:14px;padding:11px 16px;font-weight:900;cursor:pointer;background:#1e9b91;color:white}
+button.secondary{background:#e9f1ed;color:#244a4b}button:focus-visible{outline:4px solid #ffbd36;outline-offset:3px}
+#start{position:fixed;z-index:20;inset:0;display:grid;place-items:center;background:linear-gradient(#76cbe6dd,#e4f4d9ee);padding:18px}
+#start .welcome{width:min(480px,100%);padding:28px;text-align:center}
+#start h1{font-size:clamp(28px,6vw,42px);line-height:1.02;margin:5px 0 8px;color:#1b625f}
+#start p{line-height:1.5}
+#name{width:100%;padding:14px;border:2px solid #c6dfd4;border-radius:14px;font-size:18px;margin:8px 0 13px;text-align:center}
+#toast{position:fixed;z-index:12;top:90px;left:50%;transform:translate(-50%,-15px);opacity:0;transition:.3s;background:#fff4c9;padding:12px 18px;border-radius:16px;font-weight:1000;box-shadow:0 8px 24px #17334a30;pointer-events:none}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#sound{position:fixed;right:15px;bottom:15px;z-index:5;border-radius:50%;width:46px;height:46px;padding:0;font-size:20px}
+#help{position:fixed;right:15px;top:90px;z-index:5;padding:9px 12px}
+#maplabel{position:fixed;right:15px;bottom:72px;z-index:4;font-size:11px;padding:8px 10px}
+@media(max-width:600px){#mission{top:82px;width:180px;padding:10px}#mission p{font-size:11px}.stat{padding:8px;font-size:12px}#brand{padding:8px 10px}#controls{font-size:10px}#help{top:145px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="topbar">
+ <div id="brand" class="panel">🏡 LE PETIT CITOYEN <small>LE VILLAGE DES BONNES MANIÈRES</small></div>
+ <div id="stats">
+  <div class="stat panel">⭐ <span id="stars">0</span></div>
+  <div class="stat panel">🏅 <span id="medals">0</span></div>
+ </div>
+</div>
+<div id="mission" class="panel"><h3>🎯 Ta mission du jour</h3><p id="missionText">Va rencontrer les habitants du village et découvre leurs aventures.</p></div>
+<button id="help" class="panel secondary">Comment jouer ?</button>
+<div id="maplabel" class="panel">🌳 Village de la bonne entente</div>
+<button id="interact">Parler à l'habitant</button>
+<div id="controls" class="panel">Déplacement : <b>W A S D</b> ou <b>↑ ↓ ← →</b> · Approche-toi d'un lieu pour interagir</div>
+<button id="sound" title="Activer ou couper la voix">🔊</button>
+<div id="toast"></div>
+<div id="dialog" class="panel">
+ <h2 id="dialogTitle">Bonjour !</h2><p id="dialogText"></p>
+ <div class="actions"><button id="continue">Continuer l'aventure ✨</button><button id="close" class="secondary">Plus tard</button></div>
+</div>
+<div id="start">
+ <div class="welcome panel">
+  <div style="font-size:54px">🦊 🐦 🦫</div>
+  <h1>Bienvenue au village !</h1>
+  <p>Un monde merveilleux t'attend. Entre ton prénom, puis pars à la rencontre des habitants. Chaque bonne action fait briller le village !</p>
+  <input id="name" maxlength="18" autocomplete="given-name" placeholder="Ton prénom" aria-label="Ton prénom">
+  <button id="play" style="width:100%;font-size:18px;padding:15px">Entrer dans le village 🌈</button>
+  <p style="font-size:11px;color:#64817d">Pour les enfants de 5 à 7 ans · Les progrès sont gardés sur cet appareil.</p>
+ </div>
+</div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+const mount=document.querySelector('#game');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bd9ed);scene.fog=new THREE.Fog(0x9bd9ed,28,75);
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,120);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;mount.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xe9faff,0x688b51,2.0));
+const sun=new THREE.DirectionalLight(0xfff2d6,2.5);sun.position.set(-12,22,12);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);scene.add(sun);
+const mat=(color,roughness=.9)=>new THREE.MeshStandardMaterial({color,roughness});
+const grass=mat(0x76bd69),pathmat=mat(0xe8c994),wood=mat(0x9b623b),roofmat=mat(0xc85d49),cream=mat(0xffe9bd),white=mat(0xffffff),dark=mat(0x344b4b),leaf=mat(0x398e59),trunk=mat(0x795036),gold=mat(0xffcf4f),blue=mat(0x69b9d7),pink=mat(0xf28e9d);
+function box(parent,x,y,z,w,h,d,material){let m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m}
+function sphere(parent,x,y,z,r,material){let m=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),material);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
+function cylinder(parent,x,y,z,r1,r2,h,material,n=8){let m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,n),material);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),grass);ground.rotation.x=-Math.PI/2;ground.position.y=-.08;ground.receiveShadow=true;scene.add(ground);
+// chemins en croix
+function path(x,z,w,d){let m=new THREE.Mesh(new THREE.BoxGeometry(w,.035,d),pathmat);m.position.set(x,.005,z);m.receiveShadow=true;scene.add(m)}
+path(0,0,5,42);path(0,0,42,4);path(-10,-10,3,15);path(10,10,3,15);
+const river=new THREE.Mesh(new THREE.BoxGeometry(50,.08,3),new THREE.MeshStandardMaterial({color:0x58b8d4,roughness:.25,metalness:.1}));river.position.set(0,-.01,-19);scene.add(river);
+function tree(x,z,s=1){let g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(s);cylinder(g,0,.8,0,.22,.3,1.6,trunk);sphere(g,0,1.9,0,.95,leaf);sphere(g,-.48,1.65,.1,.58,mat(0x4da667));sphere(g,.45,2.1,-.1,.58,mat(0x2f8050));scene.add(g)}
+for(let i=0;i<34;i++){let a=i*2.399,r=17+(i%5)*2,x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.abs(x)>7||Math.abs(z)>8)tree(x,z,.7+(i%4)*.13)}
+// fleurs
+for(let i=0;i<30;i++){let x=(Math.sin(i*13)*14),z=(Math.cos(i*7)*14);if(Math.abs(x)>4&&Math.abs(z)>4){sphere(scene,x,.15,z,.12,i%2?pink:gold)}}
+// maisons et zones interactives
+const interactables=[];
+function house(name,x,z,color,roof,kind,story){let g=new THREE.Group();g.position.set(x,0,z);box(g,0,1.25,0,3.3,2.5,2.8,mat(color));let r=new THREE.Mesh(new THREE.ConeGeometry(2.45,1.55,4),mat(roof));r.rotation.y=Math.PI/4;r.position.set(0,3.25,0);r.castShadow=true;g.add(r);box(g,0,.8,1.42,.75,1.55,.12,wood);box(g,-.9,1.65,1.43,.62,.62,.1,blue);box(g,.9,1.65,1.43,.62,.62,.1,blue);sphere(g,0,3.8,0,.16,gold);scene.add(g);
+ let sign=box(g,0,2.65,1.53,1.55,.42,.12,cream);
+ // petite porte comme point d'entrée
+ let marker=new THREE.Group();marker.position.set(x,0,z+2.1);scene.add(marker);sphere(marker,0,.4,0,.35,gold);
+ interactables.push({name,x,z,kind,story,group:g,marker,done:false});}
+const stories=[
+ {name:'La maison de Léo',kind:'Politesse',character:'Léo le renard',line:'Bonjour ! Je suis Léo. Ce matin, j’ai oublié de dire bonjour à la boulangère. Peux-tu m’aider à réparer mon oubli ?',choice:'Dire bonjour et sourire',lesson:'Dire bonjour, s’il vous plaît et merci rend les rencontres plus joyeuses.',reward:'Tu as offert un beau sourire au village !'},
+ {name:'La place du village',kind:'Civisme',character:'Mila la mésange',line:'Oh là là ! Un papier traîne près du banc. La place est à tout le monde. Que pouvons-nous faire ?',choice:'Mettre le papier à la poubelle',lesson:'On garde les lieux publics propres. La nature et les espaces communs sont précieux.',reward:'La place est propre grâce à toi !'},
+ {name:'Le pont du ruisseau',kind:'Entraide',character:'Gaston le castor',line:'Je transporte des planches pour réparer le petit pont. Elles sont lourdes ! Pourrais-tu m’aider, sans te mettre en danger ?',choice:'Demander à un adulte et aider ensemble',lesson:'Aider, c’est aussi savoir demander l’aide d’un adulte quand c’est nécessaire.',reward:'En équipe, on est plus forts !'},
+ {name:'La bibliothèque',kind:'Respect',character:'Rosalie la lapine',line:'À la bibliothèque, tout le monde veut lire tranquillement. Un ami parle très fort. Comment lui proposer de faire moins de bruit ?',choice:'Parler doucement et respecter les lecteurs',lesson:'Le respect, c’est penser aux autres et prendre soin des livres.',reward:'La bibliothèque est un endroit paisible !'},
+ {name:'Le jardin collectif',kind:'Nature',character:'Émile le jardinier',line:'Les petites pousses ont soif et les abeilles butinent les fleurs. Comment prendre soin du jardin ?',choice:'Arroser doucement et protéger les fleurs',lesson:'L’eau est précieuse. On respecte les plantes et les petits animaux.',reward:'Le jardin grandit grâce à tes bons gestes !'}
+];
+house('Boulangerie',-10,-9,0xffd7a2,0xc75e4b,'Politesse',stories[0]);
+house('Mairie',10,-9,0xf2d6a5,0x4d8c83,'Civisme',stories[1]);
+house('Atelier',-10,9,0xd9e8d5,0xb76d42,'Entraide',stories[2]);
+house('Bibliothèque',10,9,0xe9c8d8,0x7964a6,'Respect',stories[3]);
+house('Jardin',0,16,0xf4e4b6,0x719d50,'Nature',stories[4]);
+// personnages stylisés 3D avec corps, tête, oreilles et animation
+function character(x,z,bodyColor,animal){let g=new THREE.Group();g.position.set(x,0,z);let body=sphere(g,0,.8,0,.48,mat(bodyColor));body.scale.set(.78,1.05,.65);sphere(g,0,1.55,.02,.48,mat(0xf5d8b4));sphere(g,-.17,1.62,.42,.055,dark);sphere(g,.17,1.62,.42,.055,dark);sphere(g,0,1.42,.48,.07,pink);if(animal==='rabbit'){let e1=sphere(g,-.2,2.1,0,.16,mat(0xf5d8b4));e1.scale.set(.55,2, .55);let e2=e1.clone();e2.position.x=.2;g.add(e2)}else if(animal==='bird'){let wing=sphere(g,.43,.9,0,.25,mat(0x4a91bc));wing.scale.set(1,.5,.3)}else if(animal==='beaver'){sphere(g,0,.35,-.48,.28,wood).scale.set(1,.4,1.6)}else{let e1=sphere(g,-.3,2,0,.17,mat(bodyColor));e1.scale.set(.6,1.3,.6);let e2=e1.clone();e2.position.x=.3;g.add(e2)}scene.add(g);return g}
+const cast=[character(-8,-5,0xe88b45,'fox'),character(8,-5,0x73b8d2,'bird'),character(-8,12,0x9c7049,'beaver'),character(8,12,0xe6a0ae,'rabbit'),character(1,18,0x83a75b,'')];
+const player=character(0,2,0x4b9c9a,'');player.scale.set(.82,.82,.82);
+let playerName='ami',stars=0,medals=0,active=null,voiceOn=true,unlocked=1,done=new Set();
+const key='petitCitoyen3D_v1';
+try{let saved=JSON.parse(localStorage.getItem(key)||'{}');stars=saved.stars||0;medals=saved.medals||0;unlocked=saved.unlocked||1;done=new Set(saved.done||[])}catch{}
+document.querySelector('#stars').textContent=stars;document.querySelector('#medals').textContent=medals;
+function save(){localStorage.setItem(key,JSON.stringify({stars,medals,unlocked,done:[...done]}))}
+function speak(text){if(!voiceOn||!('speechSynthesis'in window))return;speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(text);u.lang='fr-CA';u.rate=.88;u.pitch=1.12;speechSynthesis.speak(u)}
+function toast(t){let e=document.querySelector('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2300)}
+function showStory(s){let index=stories.findIndex(x=>x.kind===s.kind);if(index>=unlocked){toast('Cette aventure se débloque après la précédente ! 🔒');speak('Continue tes aventures pour débloquer ce lieu.');return}active=s;document.querySelector('#dialogTitle').textContent=s.name+' — '+s.character;document.querySelector('#dialogText').textContent=s.line;document.querySelector('#dialog').classList.add('show');document.querySelector('#continue').textContent=done.has(s.kind)?'Réécouter l’histoire 🎧':'Je relève le défi ! ⭐';speak(`${playerName}, ${s.line}`)}
+function complete(s){if(!done.has(s.kind)){done.add(s.kind);stars+=3;medals++;unlocked=Math.min(5,unlocked+1);document.querySelector('#stars').textContent=stars;document.querySelector('#medals').textContent=medals;save();toast('⭐ +3 étoiles de civisme !');}document.querySelector('#dialogText').textContent=s.lesson+' '+s.reward;document.querySelector('#continue').textContent='Super, continuons !';speak(`${s.lesson} ${s.reward}`);document.querySelector('#missionText').textContent=done.size>=5?'Bravo ! Tu es un grand citoyen du village !':`Aventures réussies : ${done.size} sur 5. Trouve un autre lieu à découvrir.`}
+document.querySelector('#continue').onclick=()=>{if(helpOpen){helpOpen=false;document.querySelector('#dialog').classList.remove('show');return}if(!active)return;if(!done.has(active.kind))complete(active);else{document.querySelector('#dialog').classList.remove('show');active=null}};
+document.querySelector('#close').onclick=()=>{document.querySelector('#dialog').classList.remove('show');active=null;helpOpen=false};
+document.querySelector('#sound').onclick=()=>{voiceOn=!voiceOn;document.querySelector('#sound').textContent=voiceOn?'🔊':'🔇';if(!voiceOn)speechSynthesis?.cancel();else toast('La voix est activée !')};
+document.querySelector('#help').onclick=()=>{let t='Déplace ton personnage avec les flèches ou les touches W A S D. Approche-toi d’une maison ou d’un personnage, puis appuie sur le bouton jaune. Écoute l’histoire et relève le défi. Chaque aventure réussie donne 3 étoiles !';document.querySelector('#dialogTitle').textContent='Comment jouer ?';document.querySelector('#dialogText').textContent=t;document.querySelector('#continue').textContent='J’ai compris !';document.querySelector('#dialog').classList.add('show');speak(t);active=null;helpOpen=true};
+document.querySelector('#play').onclick=()=>{playerName=document.querySelector('#name').value.trim()||'mon ami';document.querySelector('#start').style.display='none';document.querySelector('#missionText').textContent=`Bienvenue ${playerName} ! Va voir Léo à la boulangerie pour ta première aventure.`;speak(`Bienvenue ${playerName} ! Le village t’attend. Explore et amuse-toi !`)};
+document.querySelector('#name').addEventListener('keydown',e=>{if(e.key==='Enter')document.querySelector('#play').click()});
+const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+let nearby=null,helpOpen=false;
+document.querySelector('#interact').onclick=()=>{if(nearby)showStory(nearby.story)};
+const clock=new THREE.Clock();const v=new THREE.Vector3();
+function animate(){requestAnimationFrame(animate);let dt=Math.min(clock.getDelta(),.04);let dx=0,dz=0;if(!document.querySelector('#dialog').classList.contains('show')){if(keys.w||keys.arrowup)dz-=1;if(keys.s||keys.arrowdown)dz+=1;if(keys.a||keys.arrowleft)dx-=1;if(keys.d||keys.arrowright)dx+=1}if(dx||dz){v.set(dx,0,dz).normalize();player.position.x+=v.x*dt*5;player.position.z+=v.z*dt*5;player.rotation.y=Math.atan2(v.x,v.z);player.position.x=THREE.MathUtils.clamp(player.position.x,-20,20);player.position.z=THREE.MathUtils.clamp(player.position.z,-22,22);player.position.y=.05+Math.abs(Math.sin(clock.elapsedTime*12))*.08}
+cast.forEach((c,i)=>{c.position.y=Math.sin(clock.elapsedTime*2+i)*.06;c.rotation.y=Math.sin(clock.elapsedTime+i)*.12});
+let nearest=null,dist=99;for(let o of interactables){let d=Math.hypot(player.position.x-o.x,player.position.z-(o.z+2));o.marker.children[0].scale.setScalar(1+Math.sin(clock.elapsedTime*3)*.1);if(d<dist){dist=d;nearest=o}}
+nearby=dist<3.2?nearest:null;let btn=document.querySelector('#interact');btn.classList.toggle('show',!!nearby&&!document.querySelector('#dialog').classList.contains('show'));let locked=nearby?stories.findIndex(x=>x.kind===nearby.kind)>=unlocked:false;btn.textContent=nearby?(locked?'Aventure à débloquer 🔒':(done.has(nearby.kind)?'Revoir cette aventure ↻':`Découvrir : ${nearby.kind} ✨`)):'';btn.disabled=locked;
+camera.position.lerp(new THREE.Vector3(player.position.x+9,11,player.position.z+12),1-Math.pow(.001,dt));camera.lookAt(player.position.x,1,player.position.z);
+renderer.render(scene,camera)}
+animate();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body></html>
