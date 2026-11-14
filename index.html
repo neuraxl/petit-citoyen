@@ -52,7 +52,7 @@ button.secondary{background:#e9f1ed;color:#244a4b}button:focus-visible{outline:4
 <button id="help" class="panel secondary">Comment jouer ?</button>
 <div id="maplabel" class="panel">🌳 Village de la bonne entente</div>
 <button id="interact">Parler à l'habitant</button>
-<div id="controls" class="panel">Déplacement : <b>W A S D</b> ou <b>↑ ↓ ← →</b> · Approche-toi d'un lieu pour interagir</div>
+<div id="controls" class="panel">Déplacement : <b>W A S D</b> ou <b>↑ ↓ ← →</b> · Approche-toi d'un lieu, puis bouton jaune ou touche <b>E</b></div>
 <button id="sound" title="Activer ou couper la voix">🔊</button>
 <div id="toast"></div>
 <div id="dialog" class="panel">
@@ -132,14 +132,14 @@ document.querySelector('#sound').onclick=()=>{voiceOn=!voiceOn;document.querySel
 document.querySelector('#help').onclick=()=>{let t='Déplace ton personnage avec les flèches ou les touches W A S D. Approche-toi d’une maison ou d’un personnage, puis appuie sur le bouton jaune. Écoute l’histoire et relève le défi. Chaque aventure réussie donne 3 étoiles !';document.querySelector('#dialogTitle').textContent='Comment jouer ?';document.querySelector('#dialogText').textContent=t;document.querySelector('#continue').textContent='J’ai compris !';document.querySelector('#dialog').classList.add('show');speak(t);active=null;helpOpen=true};
 document.querySelector('#play').onclick=()=>{playerName=document.querySelector('#name').value.trim()||'mon ami';document.querySelector('#start').style.display='none';document.querySelector('#missionText').textContent=`Bienvenue ${playerName} ! Va voir Léo à la boulangerie pour ta première aventure.`;speak(`Bienvenue ${playerName} ! Le village t’attend. Explore et amuse-toi !`)};
 document.querySelector('#name').addEventListener('keydown',e=>{if(e.key==='Enter')document.querySelector('#play').click()});
-const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if((e.key.toLowerCase()==='e'||e.key==='Enter'||e.key===' ')&&nearby&&document.querySelector('#start').style.display==='none'&&!document.querySelector('#dialog').classList.contains('show'))showStory(nearby.story);if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 let nearby=null,helpOpen=false;
 document.querySelector('#interact').onclick=()=>{if(nearby)showStory(nearby.story)};
 const clock=new THREE.Clock();const v=new THREE.Vector3();
 function animate(){requestAnimationFrame(animate);let dt=Math.min(clock.getDelta(),.04);let dx=0,dz=0;if(!document.querySelector('#dialog').classList.contains('show')){if(keys.w||keys.arrowup)dz-=1;if(keys.s||keys.arrowdown)dz+=1;if(keys.a||keys.arrowleft)dx-=1;if(keys.d||keys.arrowright)dx+=1}if(dx||dz){v.set(dx,0,dz).normalize();player.position.x+=v.x*dt*5;player.position.z+=v.z*dt*5;player.rotation.y=Math.atan2(v.x,v.z);player.position.x=THREE.MathUtils.clamp(player.position.x,-20,20);player.position.z=THREE.MathUtils.clamp(player.position.z,-22,22);player.position.y=.05+Math.abs(Math.sin(clock.elapsedTime*12))*.08}
 cast.forEach((c,i)=>{c.position.y=Math.sin(clock.elapsedTime*2+i)*.06;c.rotation.y=Math.sin(clock.elapsedTime+i)*.12});
-let nearest=null,dist=99;for(let o of interactables){let d=Math.hypot(player.position.x-o.x,player.position.z-(o.z+2));o.marker.children[0].scale.setScalar(1+Math.sin(clock.elapsedTime*3)*.1);if(d<dist){dist=d;nearest=o}}
-nearby=dist<3.2?nearest:null;let btn=document.querySelector('#interact');btn.classList.toggle('show',!!nearby&&!document.querySelector('#dialog').classList.contains('show'));let locked=nearby?stories.findIndex(x=>x.kind===nearby.kind)>=unlocked:false;btn.textContent=nearby?(locked?'Aventure à débloquer 🔒':(done.has(nearby.kind)?'Revoir cette aventure ↻':`Découvrir : ${nearby.kind} ✨`)):'';btn.disabled=locked;
+let nearest=null,dist=99;for(let o of interactables){let d=Math.min(Math.hypot(player.position.x-o.x,player.position.z-(o.z+2)),Math.hypot(player.position.x-o.x,player.position.z-o.z));o.marker.children[0].scale.setScalar(1+Math.sin(clock.elapsedTime*3)*.1);if(d<dist){dist=d;nearest=o}}
+nearby=dist<4.6?nearest:null;let btn=document.querySelector('#interact');btn.classList.toggle('show',!!nearby&&!document.querySelector('#dialog').classList.contains('show'));let locked=nearby?stories.findIndex(x=>x.kind===nearby.kind)>=unlocked:false;btn.textContent=nearby?(locked?'Aventure à débloquer 🔒':(done.has(nearby.kind)?'Revoir cette aventure ↻':`Découvrir : ${nearby.kind} ✨`)):'';btn.disabled=locked;
 camera.position.lerp(new THREE.Vector3(player.position.x+9,11,player.position.z+12),1-Math.pow(.001,dt));camera.lookAt(player.position.x,1,player.position.z);
 renderer.render(scene,camera)}
 animate();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
